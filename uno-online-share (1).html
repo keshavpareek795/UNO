@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Uno Live (shareable)</title>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#6b6a64;--ac:#5b4bdb;--bd:#dedcd4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17171a;--card:#222226;--tx:#f2f1ec;--mut:#9d9c96;--ac:#8c7dff;--bd:#38383e}}
+:root[data-theme="dark"]{--bg:#17171a;--card:#222226;--tx:#f2f1ec;--mut:#9d9c96;--ac:#8c7dff;--bd:#38383e}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:720px;margin:0 auto;padding:14px}
+h1{font-size:22px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text]{flex:1;min-width:110px;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+button{padding:10px 14px;border:0;border-radius:10px;background:var(--ac);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+.mut{color:var(--mut);font-size:14px}
+.felt{background:radial-gradient(ellipse at center,#1f7a4a,#0f4d2d);color:#fff;border-radius:18px;padding:12px;margin-bottom:12px;min-height:380px;box-shadow:inset 0 0 40px #0006}
+.opps{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.opp{background:#0004;border:2px solid transparent;border-radius:12px;padding:6px 10px;text-align:center;font-size:13px;min-width:84px}
+.opp.t{border-color:#ffd54a;box-shadow:0 0 12px #ffd54a99;animation:pl 1s infinite alternate}
+@keyframes pl{to{box-shadow:0 0 22px #ffd54a}}
+.mini{display:flex;justify-content:center;height:22px;margin-top:3px}.mini i{width:14px;height:22px;background:#222;border:1px solid #fff;border-radius:3px;margin-left:-8px;display:block}
+.mid{display:flex;gap:22px;justify-content:center;align-items:center;margin:16px 0 6px}
+.c{position:relative;width:62px;height:92px;border-radius:10px;border:3px solid #fff;box-shadow:0 2px 6px #0007;padding:0;color:#fff;font-weight:900;overflow:hidden;flex:none;transition:transform .15s}
+.c .ov{position:absolute;left:50%;top:50%;width:80%;height:56%;background:#fff;border-radius:50%;transform:translate(-50%,-50%) rotate(-28deg);display:flex;align-items:center;justify-content:center}
+.c .ov u{text-decoration:none;transform:rotate(28deg);font-size:26px}
+.c i{position:absolute;font-style:normal;font-size:12px}.c .a{left:5px;top:3px}.c .b{right:5px;bottom:3px;transform:rotate(180deg)}
+.c.big{width:84px;height:124px}.c.big .ov u{font-size:36px}
+.c.back{background:#16161a}.c.back .ov{background:#d9363e}.c.back .ov u{font-size:17px;color:#ffd54a}
+.top.pop{animation:pop .45s ease-out}@keyframes pop{0%{transform:scale(1.7) rotate(-14deg);opacity:.2}100%{transform:scale(1) rotate(var(--r,0deg));opacity:1}}
+.hand{display:flex;justify-content:center;flex-wrap:wrap;padding:10px 0 4px;min-height:100px}
+.hand .c{margin-left:-14px}.hand .c.ok{transform:translateY(-8px)}.hand .c.ok:hover{transform:translateY(-20px);z-index:5}.hand .c.no{filter:brightness(.55)}
+.info{text-align:center;font-weight:700;min-height:24px;margin:4px 0}
+.dot{width:20px;height:20px;border-radius:50%;display:inline-block;vertical-align:middle;border:2px solid #fff}
+.cp{width:46px;height:46px;border-radius:50%;border:3px solid #fff;padding:0}
+.uno{background:#d9363e;font-size:18px;animation:pl .5s infinite alternate}.catch{background:#e08a00}
+#chat{height:150px;overflow-y:auto;font-size:14px;border:1px solid var(--bd);border-radius:10px;padding:8px;background:var(--bg);margin-bottom:8px}
+#chat div{margin:2px 0}#chat .sys{color:var(--mut);font-style:italic}
+.em button{padding:6px 10px;background:var(--bg);border:1px solid var(--bd);font-size:18px}
+.hero{display:flex;justify-content:center;margin:6px 0 14px;padding-left:10px}.hero .c{margin-left:-10px;pointer-events:none}.hero .c:nth-child(odd){transform:rotate(-6deg)}.hero .c:nth-child(even){transform:rotate(5deg)}
+</style></head><body><main>
+<h1>🃏 Uno Live</h1>
+<div class="hero" id="hero"></div>
+<div class="card">
+ <div class="row"><input type="text" id="nm" maxlength="16" placeholder="Your name"><button id="mk">Create room</button></div>
+ <div class="row" style="margin-top:8px"><input type="text" id="rc" maxlength="12" placeholder="Friend’s room code"><button id="jn">Join</button><button id="cp" disabled>Copy invite link</button></div>
+ <div class="mut" id="st" style="margin-top:8px">Create a room and send the invite link, or type a friend’s room code and press Join. 2 to 10 players.</div>
+</div>
+<div class="felt" id="game"></div>
+<div class="card">
+ <b>Table chat</b><div id="chat" style="margin-top:8px"></div>
+ <div class="row"><input type="text" id="cx" maxlength="200" placeholder="Say something…"><button id="cs">Send</button></div>
+ <div class="row em" style="margin-top:8px"><button>😂</button><button>😡</button><button>👏</button><button>😎</button><button>🔥</button><button>😭</button><button>🙈</button></div>
+</div>
+<p class="mut">Official-style rules: match color or symbol. After your second-to-last card is played, say UNO! before the next player moves, or anyone can catch you for +2. Drawn playable cards can be played right away. Optional +2/+4 stacking is chosen before each game. Cards are hidden on screen but not truly secret from technical snooping, so play with friends you trust.</p>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const CC={R:"#d9363e",Y:"#e0a800",G:"#2e9e4f",B:"#2f6fd6",W:"#222"},SYM={s:"⊘",r:"⇄",d:"+2",w:"★",f:"+4"},CN={R:"red",Y:"yellow",G:"green",B:"blue"};
+const lbl=c=>SYM[c[1]]||c[1],pts=c=>/\d/.test(c[1])?+c[1]:c[0]==="W"?50:20;
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+let room=null,myPeer="me",offs=[],G={phase:"lobby",v:0,id:""},H={deck:[],disc:[]},wild=-1,chat=[],lastV=-1,lastLog="",wasMine=false,stackOpt=false;
+let myName="Player"+(10+Math.floor(Math.random()*90));
+try{const n=localStorage.getItem("uno_name");if(n)myName=n}catch(e){}
+$("#nm").value=myName;
+function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=660;g.gain.setValueAtTime(.12,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.3);o.start();o.stop(a.currentTime+.3)}catch(e){}}
+function players(){
+ if(!room)return[];
+ const l=room.peers().filter(p=>p.kind==="viewer"&&p.presence&&p.presence.name);
+ if(!l.some(p=>p.sameTab))l.push({peer:myPeer,sameTab:true,isMe:true,presence:{name:myName}});
+ return l.sort((a,b)=>a.peer<b.peer?-1:1);
+}
+function push(){G.v++;G.dn=H.deck.length;if(room)room.emit("u",{t:"s",g:G}).catch(()=>{});render()}
+function draw(p,n){for(let i=0;i<n;i++){
+ if(!H.deck.length&&H.disc.length>1){const t=H.disc.pop();H.deck=shuffle(H.disc);H.disc=[t]}
+ if(H.deck.length)G.hands[p].push(H.deck.pop());
+}}
+function start(){
+ const pl=players().slice(0,10);if(pl.length<2)return;
+ const deck=[];for(const c of "RYGB"){deck.push(c+"0");for(const v of "123456789srd")deck.push(c+v,c+v)}
+ for(let i=0;i<4;i++)deck.push("Ww","Wf");
+ shuffle(deck);
+ const order=pl.map(p=>p.peer),names={},hands={},score={},old=G.score||{};
+ pl.forEach(p=>{names[p.peer]=p.presence.name;hands[p.peer]=deck.splice(0,7);score[p.peer]=old[p.peer]||0});
+ const ti=deck.findIndex(c=>c[0]!=="W"&&/\d/.test(c[1])),top=deck.splice(ti,1)[0];
+ H.deck=deck;H.disc=[top];
+ G={phase:"play",v:0,id:Math.random().toString(36).slice(2),host:myPeer,order,names,hands,score,top,col:top[0],turn:0,dir:1,win:"",pend:0,stack:stackOpt,vuln:"",drew:"",log:"New round! "+names[order[0]]+" starts."};
+ push();
+}
+const ok=c=>G.pend>0?(c[1]===G.top[1]&&(c[1]==="d"||c[1]==="f")):(c[0]==="W"||c[0]===G.col||c[1]===G.top[1]);
+function adv(s){const n=G.order.length;G.turn=((G.turn+G.dir*s)%n+n)%n}
+function act(from,a){
+ if(G.phase!=="play"||G.win||G.host!==myPeer||!a)return;
+ const nm=G.names[from];if(!nm)return;
+ if(a.k==="uno"){if(G.vuln===from){G.vuln="";G.log="📣 "+nm+" shouted UNO!";push()}return}
+ if(a.k==="catch"){if(G.vuln&&G.vuln!==from){const v=G.vuln;draw(v,2);G.vuln="";G.log="🚨 "+nm+" caught "+G.names[v]+" without UNO! +2 cards";push()}return}
+ if(G.order[G.turn]!==from)return;
+ const h=G.hands[from],n=G.order.length;
+ if(a.k==="pass"){if(G.drew===from){G.drew="";G.vuln="";G.log=nm+" passed";adv(1);push()}return}
+ if(a.k==="draw"){
+  if(G.drew===from)return;G.vuln="";
+  if(G.pend>0){const k=G.pend;draw(from,k);G.pend=0;G.log=nm+" drew "+k+" cards";adv(1);push();return}
+  draw(from,1);const c=h[h.length-1];
+  if(c&&ok(c)){G.drew=from;G.log=nm+" drew a card and may play it"}else{G.log=nm+" drew a card";adv(1)}
+  push();return;
+ }
+ if(a.k!=="play")return;
+ const c=h[a.i];if(!c||!ok(c))return;
+ if(G.drew===from&&a.i!==h.length-1)return;
+ const col=c[0]==="W"?("RYGB".includes(a.col)&&a.col?a.col:null):c[0];if(!col)return;
+ G.vuln="";G.drew="";
+ h.splice(a.i,1);H.disc.push(c);G.top=c;G.col=col;
+ G.log=nm+" played "+(c[0]==="W"?"wild "+lbl(c)+" → "+CN[col]:CN[c[0]]+" "+lbl(c));
+ if(!h.length){G.win=from;let s=0;G.order.forEach(p=>G.hands[p].forEach(x=>s+=pts(x)));G.score[from]=(G.score[from]||0)+s;G.log="🏆 "+nm+" wins the round (+"+s+" pts)";push();return}
+ if(h.length===1)G.vuln=from;
+ const nx=()=>G.order[((G.turn+G.dir)%n+n)%n];let st=1;
+ if(c[1]==="s"){st=2;G.log+=" · "+G.names[nx()]+" is skipped"}
+ else if(c[1]==="r"){G.dir*=-1;if(n===2)st=2}
+ else if(c[1]==="d"||c[1]==="f"){const k=c[1]==="d"?2:4;if(G.stack)G.pend+=k;else{draw(nx(),k);st=2}}
+ adv(st);push();
+}
+function send(a){if(G.host===myPeer)act(myPeer,a);else if(room)room.emit("u",{t:"a",a}).catch(()=>{})}
+function sane(g){return g&&typeof g==="object"&&Array.isArray(g.order)&&g.hands&&typeof g.v==="number"&&typeof g.top==="string"&&typeof g.id==="string"&&g.names&&g.score&&g.order.every(p=>Array.isArray(g.hands[p]))}
+function onMsg(m){
+ const d=m.data;if(!d||m.sameTab)return;
+ if(d.t==="s"&&sane(d.g)){if(d.g.id!==G.id||d.g.v>G.v){G=d.g;wild=-1;render()}}
+ else if(d.t==="a")act(m.peer,d.a);
+ else if(d.t==="req"&&G.host===myPeer&&G.phase==="play")room.emit("u",{t:"s",g:G}).catch(()=>{});
+}
+function addChat(who,txt,sys){chat.push({who,txt,sys});if(chat.length>80)chat.shift();const c=$("#chat");c.innerHTML=chat.map(m=>m.sys?`<div class="sys">${esc(m.txt)}</div>`:`<div><b>${esc(m.who)}:</b> ${esc(m.txt)}</div>`).join("");c.scrollTop=c.scrollHeight}
+function sendChat(t){t=String(t).trim().slice(0,200);if(!t)return;if(room)room.emit("c",{x:t}).catch(()=>{});else addChat(myName,t)}
+function onChat(m){const p=players().find(p=>p.peer===m.peer);addChat(p?p.presence.name:"Player",String(m.data&&m.data.x||"").slice(0,200))}
+let URLS=["wss://broker.emqx.io:8084/mqtt","wss://broker.hivemq.com:8884/mqtt","wss://test.mosquitto.org:8081"];
+function makeNet(isHost,code,name,onReady,onFail){
+ const R={},hs={},ph=new Set(),cl=[],seen=new Set(),roster=new Map();
+ const me="p"+Math.random().toString(36).slice(2,10),T="unolive7/"+code;let n=0,ready=false,hb=null;
+ roster.set(me,{name,t:Date.now()});
+ const fire=(t,m)=>(hs[t]||[]).forEach(f=>{try{f(m)}catch(e){console.error(e)}});
+ const fireP=j=>{const peers=R.peers();ph.forEach(f=>{try{f({peers,joined:j||[],left:[],updated:[]})}catch(e){}})};
+ const deliver=(t,from,data)=>fire(t,{topic:t,peer:from,sameTab:from===me,data});
+ const raw=o=>{o.i=me+":"+(++n);seen.add(o.i);const s=JSON.stringify(o);cl.forEach(c=>c.connected&&c.publish(T,s))};
+ const hello=()=>raw({t:"p",from:me,name});
+ R.peers=()=>[...roster].filter(([id,v])=>id===me||Date.now()-v.t<15000).map(([id,v])=>({peer:id,kind:"viewer",presence:{name:v.name},sameTab:id===me,isMe:id===me}));
+ R.on=(t,f)=>{(hs[t]=hs[t]||new Set()).add(f);return()=>hs[t].delete(f)};
+ R.onPeers=f=>{ph.add(f);return()=>ph.delete(f)};
+ R.onConnection=f=>{setTimeout(()=>f(true),0);return()=>{}};
+ R.presence=()=>Promise.resolve();
+ R.emit=(t,data)=>{deliver(t,me,data);raw({t:"m",topic:t,from:me,data});return Promise.resolve()};
+ R.leave=()=>{clearInterval(hb);try{raw({t:"x",from:me})}catch(e){}setTimeout(()=>cl.forEach(c=>{try{c.end(true)}catch(e){}}),300);return Promise.resolve()};
+ const onRaw=str=>{
+  let o;try{o=JSON.parse(str)}catch(e){return}
+  if(!o||typeof o.i!=="string"||seen.has(o.i)||o.from===me)return;
+  seen.add(o.i);if(seen.size>3000)seen.clear();
+  if(o.t==="p"){const nw=!roster.has(o.from);roster.set(o.from,{name:String(o.name||"Player").slice(0,16),t:Date.now()});if(nw){setTimeout(hello,Math.random()*300);fireP([{peer:o.from}])}}
+  else if(o.t==="x"){if(roster.delete(o.from))fireP([])}
+  else if(o.t==="m"&&typeof o.topic==="string"){const r=roster.get(o.from);if(r)r.t=Date.now();deliver(o.topic,o.from,o.data)}
+ };
+ URLS.forEach((u,k)=>{
+  let c;try{c=mqtt.connect(u,{clientId:"ul"+me+k,clean:true,reconnectPeriod:3000,connectTimeout:6000,keepalive:30})}catch(e){return}
+  cl.push(c);
+  c.on("connect",()=>c.subscribe(T,{qos:0},err=>{if(err)return;hello();if(!ready){ready=true;fireP([{peer:me}]);onReady(R)}}));
+  c.on("message",(tp,buf)=>onRaw(buf.toString()));
+  c.on("error",()=>{});
+ });
+ hb=setInterval(()=>{hello();const now=Date.now();let ch=false;roster.forEach((v,id)=>{if(id!==me&&now-v.t>=15000){roster.delete(id);ch=true}});if(ch)fireP([])},4000);
+ setTimeout(()=>{if(!ready){clearInterval(hb);cl.forEach(c=>{try{c.end(true)}catch(e){}});onFail("Could not reach any game server. Check your internet, turn off VPN or ad-blocker, and try again.")}},9000);
+ return R;
+}
+async function connect(isHost){
+ myName=($("#nm").value.trim()||myName).slice(0,16);
+ try{localStorage.setItem("uno_name",myName)}catch(e){}
+ if(typeof mqtt==="undefined"){$("#st").textContent="Network library did not load. Check your internet and reload.";return}
+ const code=isHost?Math.random().toString(36).slice(2,8):$("#rc").value.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,12);
+ if(!code){$("#st").textContent="Type the room code first.";return}
+ $("#rc").value=code;
+ offs.forEach(f=>f());offs=[];
+ if(room){try{await room.leave()}catch(e){}room=null}
+ G={phase:"lobby",v:0,id:""};
+ $("#st").textContent="Connecting…";
+ makeNet(isHost,code,myName,r=>{
+  room=r;
+  offs.push(room.on("u",onMsg),room.on("c",onChat));
+  offs.push(room.onPeers(c=>{
+   const mine=c.peers.find(p=>p.isMe&&p.sameTab);if(mine)myPeer=mine.peer;
+   if(G.host===myPeer&&c.joined.some(p=>p.peer!==myPeer)&&G.phase==="play")room.emit("u",{t:"s",g:G});
+   render();
+  }));
+  $("#st").textContent="Online. Room code: "+code+" · press “Copy invite link” and send it to your friends.";
+  $("#cp").disabled=false;$("#cp").dataset.code=code;
+  if(!isHost)room.emit("u",{t:"req"});
+  render();
+ },msg=>{room=null;$("#st").textContent=msg;render()});
+}
+$("#mk").onclick=()=>connect(true);
+$("#jn").onclick=()=>connect(false);
+$("#cp").onclick=()=>{
+ if(location.protocol==="file:"){$("#st").textContent="This page is opened from your own computer, so its link will not open for friends. Upload the file to a free site (Netlify or GitHub Pages), open that website link, then press Create room. Until then, tell friends the room code: "+$("#cp").dataset.code;return}
+ const u=location.href.split("#")[0].split("?")[0]+"?room="+$("#cp").dataset.code;
+ (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>{$("#st").textContent="Invite link copied: "+u}).catch(()=>{prompt("Copy this invite link:",u)});
+};
+const face=(c,cls,i)=>`<button class="c ${cls||""}" data-i="${i}" style="background:${CC[c[0]]}"><i class="a">${lbl(c)}</i><span class="ov"><u style="color:${c[0]==="W"?"#222":CC[c[0]]}">${lbl(c)}</u></span><i class="b">${lbl(c)}</i></button>`;
+function render(){
+ const g=$("#game");
+ if(!room){g.innerHTML='<div class="info" style="padding-top:150px">Join a room to sit at the table.</div>';return}
+ if(G.phase!=="play"){
+  const pl=players();
+  g.innerHTML=`<div class="info">Players at the table (${pl.length})</div><div class="opps">${pl.map(p=>`<div class="opp">${esc(p.presence.name)}${p.isMe?" (you)":""}</div>`).join("")}</div><div class="info" style="margin-top:18px"><label><input type="checkbox" id="stk" ${stackOpt?"checked":""}> Allow +2/+4 stacking</label></div><div class="row" style="justify-content:center"><button id="go" ${pl.length<2?"disabled":""}>Deal cards</button></div><div class="info mut" style="color:#cfe">${pl.length<2?"Waiting for friends…":"Anyone can deal. Up to 10 players."}</div>`;
+  return;
+ }
+ if(G.log!==lastLog){lastLog=G.log;addChat("",G.log,1)}
+ const me=G.order.indexOf(myPeer),mine=me>=0?G.hands[myPeer]:null,cur=G.order[G.turn],myTurn=me>=0&&cur===myPeer&&!G.win;
+ if(myTurn&&!wasMine)beep();wasMine=myTurn;
+ const opp=G.order.map(p=>`<div class="opp ${cur===p&&!G.win?"t":""}"><b>${esc(G.names[p]||"?")}${p===myPeer?" (you)":""}</b><br>${G.hands[p].length} cards · ${G.score[p]||0} pts<div class="mini">${G.hands[p].slice(0,8).map(()=>"<i></i>").join("")}</div></div>`).join("");
+ const rot=((G.v*37)%24)-12,pop=G.v!==lastV?"pop":"";lastV=G.v;
+ let s=`<div class="opps">${opp}</div><div class="mid"><button class="c big back" id="dk" ${myTurn&&G.drew!==myPeer?"":"disabled"}><span class="ov"><u>UNO</u></span><i class="a">${+G.dn||0}</i></button><div style="--r:${rot}deg" class="top ${pop}">${face(G.top,"big",-1).replace("<button","<div").replace("</button>","</div>")}</div><div style="text-align:center;font-size:13px">Color<br><span class="dot" style="background:${CC[G.col]}"></span><br>${G.dir>0?"↻":"↺"}</div></div>`;
+ s+=`<div class="info">${esc(G.log||"")}${G.pend?` · <span style="color:#ffd54a">Draw ${G.pend} or stack!</span>`:""}</div>`;
+ const btn=[],hostGone=!G.win&&!room.peers().some(p=>p.peer===G.host);
+ if(hostGone)btn.push(`<button id="go">Host left. Restart game</button>`);
+ if(G.win)btn.push(`<button id="go">Next round</button>`);
+ else if(mine){
+  if(myTurn&&G.drew===myPeer)btn.push(`<button id="ps">Pass</button>`);
+  if(G.vuln===myPeer)btn.push(`<button class="uno" id="un">UNO!</button>`);
+  if(G.vuln&&G.vuln!==myPeer)btn.push(`<button class="catch" id="ct">Catch ${esc(G.names[G.vuln]||"")}!</button>`);
+ }
+ if(btn.length)s+=`<div class="row" style="justify-content:center">${btn.join("")}</div>`;
+ s+=`<div class="info">${G.win?"":mine?(myTurn?(G.pend?"Your turn: stack or draw":"Your turn"):"Waiting for "+esc(G.names[cur]||"…")):"You are watching this game."}</div>`;
+ if(mine){
+  if(wild>=0)s+=`<div class="row" style="justify-content:center;margin:6px 0">Pick a color: ${"RYGB".split("").map(k=>`<button class="cp" data-col="${k}" style="background:${CC[k]}"></button>`).join("")}</div>`;
+  s+=`<div class="hand">${mine.map((c,i)=>face(c,myTurn&&ok(c)&&(G.drew!==myPeer||i===mine.length-1)?"ok":"no",i)).join("")}</div>`;
+ }
+ g.innerHTML=s;
+}
+$("#game").addEventListener("click",e=>{
+ const t=e.target.closest("button");if(!t)return;
+ if(t.id==="go")start();
+ else if(t.id==="dk"){wild=-1;send({k:"draw"})}
+ else if(t.id==="ps")send({k:"pass"});
+ else if(t.id==="un")send({k:"uno"});
+ else if(t.id==="ct")send({k:"catch"});
+ else if(t.dataset.col){const i=wild;wild=-1;send({k:"play",i,col:t.dataset.col})}
+ else if(t.classList.contains("ok")){
+  const i=+t.dataset.i,c=(G.hands[myPeer]||[])[i];if(!c)return;
+  if(c[0]==="W"){wild=i;render()}else send({k:"play",i});
+ }
+});
+$("#game").addEventListener("change",e=>{if(e.target.id==="stk")stackOpt=e.target.checked});
+$("#cs").onclick=()=>{sendChat($("#cx").value);$("#cx").value=""};
+$("#cx").addEventListener("keydown",e=>{if(e.key==="Enter"){sendChat($("#cx").value);$("#cx").value=""}});
+document.querySelector(".em").addEventListener("click",e=>{const b=e.target.closest("button");if(b)sendChat(b.textContent)});
+$("#hero").innerHTML=["R7","Yd","Gs","Br","Ww","Wf","G5","Y9"].map(c=>face(c,"",0)).join("");
+if(location.protocol==="file:")$("#st").textContent="Note: you opened this file from your computer. To get a link friends can open in Chrome, upload it to a free site first (Netlify Drop or GitHub Pages).";
+try{const q=new URLSearchParams(location.search).get("room");if(q){$("#rc").value=q.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,12);$("#st").textContent="Type your name and press Join to enter room “"+$("#rc").value+"”."}}catch(e){}
+render();
+</script></body></html>
